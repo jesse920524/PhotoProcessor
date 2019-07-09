@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#008577</color>
+    <color name="colorPrimaryDark">#00574B</color>
+    <color name="colorAccent">#D81B60</color>
+
+    <!--*ucrop的颜色配置 由于ucrop框架api缺陷, 统一在此配置颜色-->
+    <color name="ucrop_color_toolbar">#3C3F41</color>
+    <color name="ucrop_color_statusbar">#3C3F41</color>
+    <color name="ucrop_color_toolbar_widget">#f5f5f5</color>
+
+    <color name="ucrop_color_widget_active">#f5f5f5</color>
+    <color name="ucrop_color_active_controls_color">#FFFFFF</color>
+    <color name="ucrop_color_widget_rotate_mid_line">#3C3F41</color>
+    <color name="ucrop_color_widget_background">#3C3F41</color>
+</resources>
