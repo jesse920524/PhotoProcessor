@@ -1,6 +1,6 @@
 ###说明###
-本demo的编写是为了实现android端的拍照+图片选择+裁剪功能, 
-集成了开源项目matisse && ucrop.
+本demo的编写是为了实现android端的拍照+图片选择+裁剪+压缩+预览(手势缩放)功能, 
+集成了开源项目matisse && ucrop && luban && PhotoView
 并做了一定的封装.
 
 

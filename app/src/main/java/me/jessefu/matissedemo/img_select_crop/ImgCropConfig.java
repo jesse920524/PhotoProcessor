@@ -31,7 +31,6 @@ public class ImgCropConfig {
         }}
 
     private AspectRatio ratio;
-
     private ImgCropConfig(Builder builder){
         this.ratio =builder.ratio;
     }

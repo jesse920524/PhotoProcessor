@@ -8,6 +8,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -16,6 +17,7 @@ import android.widget.Toast;
 
 import com.tbruyelle.rxpermissions2.RxPermissions;
 import com.yalantis.ucrop.UCrop;
+import com.yalantis.ucrop.view.TransformImageView;
 import com.zhihu.matisse.Matisse;
 import com.zhihu.matisse.MimeType;
 import com.zhihu.matisse.engine.impl.GlideEngine;
@@ -27,16 +29,22 @@ import com.zhihu.matisse.listener.OnSelectedListener;
 import java.io.File;
 import java.util.List;
 
+import io.reactivex.Observable;
 import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;
+import io.reactivex.schedulers.Schedulers;
 import me.jessefu.matissedemo.img_select_crop.GifSizeFilter;
+import me.jessefu.matissedemo.img_select_crop.ImgCompressConfig;
 import me.jessefu.matissedemo.img_select_crop.ImgCropConfig;
 import me.jessefu.matissedemo.img_select_crop.ImgSelectConfig;
-import me.jessefu.matissedemo.img_select_crop.ImgSelectManager;
+import me.jessefu.matissedemo.img_select_crop.ImageManager;
 import me.jessefu.matissedemo.img_select_crop.NeedCropException;
+import top.zibin.luban.CompressionPredicate;
 import top.zibin.luban.Luban;
+
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
@@ -45,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
 
     private Button mBtnChoose;
     private ImageView mIvResult;
+    private TransformImageView mTivResult;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
     private void initViews() {
         mBtnChoose = findViewById(R.id.btn_choose);
         mIvResult = findViewById(R.id.iv_result);
+        mTivResult = findViewById(R.id.tiv_result);
 
         mBtnChoose.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -66,7 +76,34 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private ImgSelectConfig selectConfig;
+    private ImgCompressConfig compressConfig;
+    private ImgCropConfig cropConfig;
     private void initPermissions() {
+
+        selectConfig = new ImgSelectConfig.Builder()
+                .selectVideo(false)
+                .authorityPath("me.jessefu.matissedemo.fileprovider")
+                .captureEnable(true)
+                .maxSelectable(1)
+                .setCheckListener(new OnCheckedListener() {
+                    @Override
+                    public void onCheck(boolean isChecked) {
+                        Log.d(TAG, "onCheck: " + isChecked);
+                    }
+                })
+                .build();
+
+
+        compressConfig = new ImgCompressConfig.Builder()
+                .setThreshold(100)
+                .setFilter(new ImgCompressConfig.GifFilter())
+                .build();
+
+        cropConfig = new ImgCropConfig.Builder()
+                .aspectRatio(ImgCropConfig.AspectRatio.ALL)
+                .build();
+
         new RxPermissions(this)
                 .request(Manifest.permission.READ_EXTERNAL_STORAGE,
                         Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -102,42 +139,18 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-    private ImgSelectManager mSelectManager;
+    private ImageManager mSelectManager;
     private void pickFromGallary(){
-        ImgSelectConfig selectConfig = new ImgSelectConfig.Builder()
-                .selectVideo(false)
-                .authorityPath("me.jessefu.matissedemo.fileprovider")
-                .captureEnable(true)
-                .maxSelectable(1)
-                .setCheckListener(new OnCheckedListener() {
-                    @Override
-                    public void onCheck(boolean isChecked) {
-                        Log.d(TAG, "onCheck: " + isChecked);
-                    }
-                })
-                .build();
 
-        mSelectManager = ImgSelectManager.getInstance(this, selectConfig, null);
+
+        mSelectManager = ImageManager.getInstance(this, selectConfig, null, null);
         mSelectManager.pickFromGallary();
     }
 
     private void pickAndCrop(){
-        ImgSelectConfig selectConfig = new ImgSelectConfig.Builder()
-                .selectVideo(false)
-                .authorityPath("me.jessefu.matissedemo.fileprovider")
-                .captureEnable(true)
-                .maxSelectable(1)
-                .setCheckListener(new OnCheckedListener() {
-                    @Override
-                    public void onCheck(boolean isChecked) {
-                        Log.d(TAG, "onCheck: " + isChecked);
-                    }
-                })
-                .build();
-        ImgCropConfig cropConfig = new ImgCropConfig.Builder()
-                .aspectRatio(ImgCropConfig.AspectRatio.ALL)
-                .build();
-        mSelectManager = ImgSelectManager.getInstance(this, selectConfig, cropConfig);
+
+
+        mSelectManager = ImageManager.getInstance(this, selectConfig, cropConfig, compressConfig);
         mSelectManager.pickAndCrop();
     }
 
@@ -188,6 +201,51 @@ public class MainActivity extends AppCompatActivity {
 //        }else if (resultCode == UCrop.RESULT_ERROR){
 //            Log.d(TAG, "onActivityResult: " + UCrop.getError(data));
 //        }
+    }
+
+    private void compressPhoto(final Uri uri) {
+        Observable.just(uri)
+                .observeOn(Schedulers.io())
+                .map(new Function<Uri, List<File>>() {
+                    @Override
+                    public List<File> apply(Uri uri) throws Exception {
+
+                        return Luban.with(MainActivity.this)
+                                .load(uri)
+                                .filter(new CompressionPredicate() {
+                                    @Override
+                                    public boolean apply(String path) {
+                                        return !(TextUtils.isEmpty(path) || path.toLowerCase().endsWith(".gif"));
+                                    }
+                                })
+                                .get();
+
+                    }
+                })
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Observer<List<File>>() {
+            @Override
+            public void onSubscribe(Disposable d) {
+
+            }
+
+            @Override
+            public void onNext(List<File> files) {
+                Uri uri1 = Uri.parse(files.get(0).getAbsolutePath());
+                mIvResult.setImageURI(uri1);
+                Log.d(TAG, "onNext: after compress: " + uri1);
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.d(TAG, "onError: " + e.getLocalizedMessage());
+            }
+
+            @Override
+            public void onComplete() {
+
+            }
+        });
     }
 
     @Deprecated

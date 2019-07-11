@@ -20,4 +20,9 @@
         android:id="@+id/iv_result"
         android:layout_width="300dp"
         android:layout_height="300dp" />
+
+    <com.yalantis.ucrop.view.TransformImageView
+        android:id="@+id/tiv_result"
+        android:layout_width="300dp"
+        android:layout_height="300dp" />
 </LinearLayout>

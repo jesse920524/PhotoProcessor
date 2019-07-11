@@ -8,7 +8,12 @@ import android.net.Uri;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
+import com.blankj.utilcode.util.FileUtils;
+import com.blankj.utilcode.util.UriUtils;
+import com.seek.biscuit.Biscuit;
+import com.seek.biscuit.Executor;
 import com.yalantis.ucrop.UCrop;
+import com.yalantis.ucrop.view.TransformImageView;
 import com.zhihu.matisse.Matisse;
 import com.zhihu.matisse.MimeType;
 import com.zhihu.matisse.engine.impl.GlideEngine;
@@ -16,6 +21,7 @@ import com.zhihu.matisse.internal.entity.CaptureStrategy;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import io.reactivex.Observable;
@@ -24,6 +30,8 @@ import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 import me.jessefu.matissedemo.R;
+import top.zibin.luban.Luban;
+import top.zibin.luban.OnRenameListener;
 
 import static android.app.Activity.RESULT_OK;
 
@@ -32,40 +40,46 @@ import static android.app.Activity.RESULT_OK;
  * @date 2019/7/8 15 23
  * @description 图片选择 && 裁剪管理类
  */
-public class ImgSelectManager {
-    private static final String TAG = "ImgSelectManager";
+public class ImageManager {
+    private static final String TAG = "ImageManager";
 
     private static final int REQUEST_CODE_CHOOSE = 1024;
 
 
-    private static volatile ImgSelectManager INSTANCE;
+    private static volatile ImageManager INSTANCE;
     private static Matisse matisseInstance;
 
-    private Context context;
+    private Context mContext;
 
     private ImgSelectConfig mSelectConfig;
     private ImgCropConfig mCropConfig;
+    private ImgCompressConfig mCompressConfig;
 
-    public static ImgSelectManager getInstance(Context context,
-                                               ImgSelectConfig imgSelectConfig,
-                                               ImgCropConfig imgCropConfig){
+    /**
+     * */
+    public static ImageManager getInstance(Context context,
+                                           ImgSelectConfig imgSelectConfig,
+                                           ImgCropConfig imgCropConfig,
+                                           ImgCompressConfig imgCompressConfig){
         if (INSTANCE == null){
-            synchronized (ImgSelectManager.class){
+            synchronized (ImageManager.class){
                 if (INSTANCE == null){
-                    INSTANCE = new ImgSelectManager(context, imgSelectConfig, imgCropConfig);
+                    INSTANCE = new ImageManager(context, imgSelectConfig, imgCropConfig, imgCompressConfig);
                 }
             }
         }
         return INSTANCE;
     }
 
-    private ImgSelectManager(final Context context,
-                             final ImgSelectConfig mSelectConfig,
-                             final ImgCropConfig cropConfig){
-        this.context = context;
+    private ImageManager(final Context mContext,
+                         final ImgSelectConfig mSelectConfig,
+                         final ImgCropConfig cropConfig,
+                         final ImgCompressConfig compressConfig){
+        this.mContext = mContext;
         this.mSelectConfig = mSelectConfig;
         this.mCropConfig = cropConfig;
-        matisseInstance = Matisse.from((Activity) context);
+        this.mCompressConfig = compressConfig;
+        matisseInstance = Matisse.from((Activity) mContext);
     }
 
     /**从图库选择图片*/
@@ -101,6 +115,9 @@ public class ImgSelectManager {
      *
      * @return 当CropConfig为null时, 不需要裁剪, 返回选择的图片列表.
      *          当CropConfig不为null时, 需要裁剪, 跳转到裁剪页面, 返回裁剪后的一张图片的uri
+     *
+     *          当CompressConfig为null时, 不需压缩.
+     *
      * */
     @SuppressLint("CheckResult")
     public Observable<List<Uri>> onActivityResult(final int requestCode,
@@ -108,11 +125,11 @@ public class ImgSelectManager {
                                                   final @Nullable Intent data){
         //处理选择图片
         if (requestCode == REQUEST_CODE_CHOOSE && resultCode == RESULT_OK) {
-            return Observable.create(new ObservableOnSubscribe<List<Uri>>() {
+            return Observable.create(new ObservableOnSubscribe<List<String>>() {
                 @Override
-                public void subscribe(ObservableEmitter<List<Uri>> emitter) throws Exception {
+                public void subscribe(ObservableEmitter<List<String>> emitter) throws Exception {
 
-                    List<Uri> uriList = matisseInstance.obtainResult(data);
+                    List<String> uriList = matisseInstance.obtainPathResult(data);
                     Log.d(TAG, "onActivityResult: " + uriList);
                     if (!uriList.isEmpty()){
                         emitter.onNext(uriList);
@@ -120,28 +137,66 @@ public class ImgSelectManager {
 
                 }
             }).subscribeOn(Schedulers.io())
+                    .map(new Function<List<String>, List<Uri>>() {
+                        @Override
+                        public List<Uri> apply(List<String> uris) throws Exception {
+                            //压缩图片
+                            if (uris.isEmpty()){
+                                throw new IllegalStateException("data is null");
+                            }
+                            //如果CompressConfig为空, 跳过执行压缩,直接返回原图
+                            List<Uri> uriList = new ArrayList<>();
+                            if (mCompressConfig == null){
+                                for (String path :
+                                        uris) {
+                                    uriList.add(Uri.parse(path));
+                                }
+                                return uriList;
+                            }
+                            Log.d(TAG, "apply: before compress: " + uris);
+                            //压缩
+                            List<File> compressedList = Luban.with(mContext)
+                                    .setFocusAlpha(true)
+                                    .ignoreBy(mCompressConfig.getIgnoreBy())
+                                    .filter(mCompressConfig.getCompressionPredicate())
+                                    .load(uris)
+                                    .get();
+
+                            Log.d(TAG, "after compress apply: " + compressedList);
+
+                            for (File file :
+                                    compressedList) {
+                                file.renameTo(new File(mContext.getCacheDir(), System.currentTimeMillis() + ".jpeg"));
+                                Uri uri = Uri.fromFile(file);
+                                uriList.add(uri);
+                            }
+                            Log.d(TAG, "apply: " + uriList);
+                            return uriList;
+                        }
+                    }).subscribeOn(Schedulers.io())
                     .map(new Function<List<Uri>, List<Uri>>() {
                         @Override
                         public List<Uri> apply(List<Uri> uris) throws Exception {
+
                             if (mCropConfig == null){//如果cropConfig为null,则直接将选择的图片返回给caller.
                                 return uris;
-                            }else{
+                            }
+
                                 //如果CropConfig不为null, 则下一步需要裁剪
                                 ImgCropConfig.AspectRatio ratio = mCropConfig.getRatio();
 
                                 UCrop.of(uris.get(0),
-                                        Uri.fromFile(new File(context.getCacheDir(), "CropImage" + System.currentTimeMillis() + ".jpeg")))
+                                        Uri.fromFile(new File(mContext.getCacheDir(), "CropImage" + System.currentTimeMillis() + ".jpeg")))
                                         .withAspectRatio(ratio.getRatioX(), ratio.getRatioY())
-                                        .start((Activity) context);
+                                        .start((Activity) mContext);
                                 /**这里抛出的异常无需任何操作 仅通知下游观察者.*/
                                 throw new NeedCropException("need crop");
-                            }
-
                         }
                     });
 
         }else if (requestCode == UCrop.REQUEST_CROP && resultCode == RESULT_OK){//处理裁剪
             List<Uri> uriList = new ArrayList<>();
+            Log.d(TAG, "onActivityResult: " + uriList);
             uriList.add(UCrop.getOutput(data));
             return Observable.just(uriList);
         }else{//处理错误
