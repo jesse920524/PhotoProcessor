@@ -13,4 +13,6 @@
     <color name="ucrop_color_active_controls_color">#FFFFFF</color>
     <color name="ucrop_color_widget_rotate_mid_line">#3C3F41</color>
     <color name="ucrop_color_widget_background">#3C3F41</color>
+
+    <color name="translucent_background">#80000000</color>
 </resources>

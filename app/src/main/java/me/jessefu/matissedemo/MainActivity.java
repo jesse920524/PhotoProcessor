@@ -4,9 +4,9 @@ import android.Manifest;
 import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v7.app.AppCompatActivity;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
@@ -15,6 +15,7 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import com.github.chrisbanes.photoview.PhotoView;
 import com.tbruyelle.rxpermissions2.RxPermissions;
 import com.yalantis.ucrop.UCrop;
 import com.yalantis.ucrop.view.TransformImageView;
@@ -72,6 +73,12 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 initPermissions();
+            }
+        });
+        mIvResult.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                PhotoPreviewActivity.actionStart(MainActivity.this, resultUri);
             }
         });
     }
@@ -154,6 +161,7 @@ public class MainActivity extends AppCompatActivity {
         mSelectManager.pickAndCrop();
     }
 
+    private Uri resultUri;
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -169,7 +177,8 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onNext(List<Uri> uris) {
                         Log.d(TAG, "onNext: " + uris);
-                        mIvResult.setImageURI(uris.get(0));
+                        resultUri = uris.get(0);
+                        mIvResult.setImageURI(resultUri);
                     }
 
                     @Override

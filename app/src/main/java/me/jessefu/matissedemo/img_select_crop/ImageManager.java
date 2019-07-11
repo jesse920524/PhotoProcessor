@@ -5,15 +5,10 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.util.Log;
 
-import com.blankj.utilcode.util.FileUtils;
-import com.blankj.utilcode.util.UriUtils;
-import com.seek.biscuit.Biscuit;
-import com.seek.biscuit.Executor;
 import com.yalantis.ucrop.UCrop;
-import com.yalantis.ucrop.view.TransformImageView;
 import com.zhihu.matisse.Matisse;
 import com.zhihu.matisse.MimeType;
 import com.zhihu.matisse.engine.impl.GlideEngine;
@@ -21,7 +16,6 @@ import com.zhihu.matisse.internal.entity.CaptureStrategy;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import io.reactivex.Observable;
@@ -31,7 +25,6 @@ import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 import me.jessefu.matissedemo.R;
 import top.zibin.luban.Luban;
-import top.zibin.luban.OnRenameListener;
 
 import static android.app.Activity.RESULT_OK;
 
@@ -56,7 +49,10 @@ public class ImageManager {
     private ImgCompressConfig mCompressConfig;
 
     /**
-     * */
+     * @param context
+     * @param imgSelectConfig 图片选择配置
+     * @param imgCompressConfig 图片压缩配置
+     * @param imgCropConfig 图片裁剪配置*/
     public static ImageManager getInstance(Context context,
                                            ImgSelectConfig imgSelectConfig,
                                            ImgCropConfig imgCropConfig,
