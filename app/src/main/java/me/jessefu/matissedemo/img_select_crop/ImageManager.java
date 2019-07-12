@@ -31,7 +31,7 @@ import static android.app.Activity.RESULT_OK;
 /**
  * @author JesseFu
  * @date 2019/7/8 15 23
- * @description 图片选择 && 裁剪管理类
+ * @description 图片选择 && 压缩 && 裁剪管理类
  */
 public class ImageManager {
     private static final String TAG = "ImageManager";
